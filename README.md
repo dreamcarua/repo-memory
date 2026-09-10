@@ -126,10 +126,11 @@ it in first.
 Then point an agent at the installer:
 
 ```
-Install project memory in <locator: a repo, a git remote, or a folder> following INSTALL.md from
-github.com/dreamcarua/repo-memory. My answers to the block at the top of INSTALL.md follow.
-If the project has a hub, add the Project hub line to AGENTS.md and a row for this repo in
-the hub's Related carriers table.
+Install project memory in <locator: a repo, a git remote, or a folder>, following the
+installer at https://github.com/dreamcarua/repo-memory/blob/main/INSTALL.md — read that
+file in full before you start. My answers to the block at the top of it follow. If the
+project has a hub, add the Project hub line to AGENTS.md and a row for this repo in the
+hub's Related carriers table.
 
 <your answers here>
 ```
@@ -147,8 +148,9 @@ findings do not fail the build.
 
 `INSTALL.md` is generated from `src/INSTALL-head.md` plus `templates/` by `src/build.py`. Do not edit
 it by hand: a CI check fails the build when the committed file and the templates disagree. That check
-exists because on my own estate the templates moved and the installer did not, and thirteen of my
-sixteen installed repositories ended up without a rotation rule as a result. One anecdote, but a
+exists because on my own estate the templates moved and the installer did not, and thirteen of the
+sixteen repositories that had memory installed by then ended up without a rotation rule as a
+result. One anecdote, but a
 cheap check.
 
 ## Bringing over what already happened
