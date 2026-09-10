@@ -96,10 +96,13 @@ what is still open to `tasks.md`, then report. Records go in the same commit as 
 git, they go in before the report, and anything changed outside the memory folder gets a line in
 `changelog.md`.
 
-**Rotation.** Files have budgets: `traps.md` 25 KB, `handoff.md` 2 KB, `tasks.md` 10 KB in a code
-repo and 25 KB in a project hub, because a hub's open items wait months on people and money while a
-code task closes when the code is written. Over budget, rotate before adding, archive verbatim,
-leave one searchable sentence behind.
+**Rotation.** Files have budgets: `handoff.md` 2 KB; `traps.md` 25 KB in a code repo and 50 KB in a
+project hub, because a hub accumulates traps across a whole business rather than one codebase;
+`tasks.md` 10 KB in a code repo and 25 KB in a project hub, because a hub's open items wait months
+on people and money while a code task closes when the code is written. Over budget, rotate before
+adding, archive verbatim, leave one searchable sentence behind. A budget is a signal, not a licence
+to break the eligibility rule: over budget with nothing eligible, the agent archives nothing and
+writes one line in `open-questions.md` instead.
 
 ## Hub and spokes
 
@@ -213,9 +216,18 @@ This has been running on seventeen repositories belonging to one owner across fi
 is n=1 on the operator, and every observation in the kit comes from that estate.
 
 The byte budgets are chosen, not derived. 150 lines is argued above against Anthropic's documented
-200. The 25 KB, 10 KB and 2 KB figures are judgement calls that produced reasonable behaviour on one
-estate; treat them as defaults to change, and change them when rotation starts evicting entries you
-still needed, or when entry stops feeling cheap.
+200. The 50 KB, 25 KB, 10 KB and 2 KB figures are judgement calls that produced reasonable behaviour
+on one estate; treat them as defaults to change, and change them when rotation starts evicting
+entries you still needed, or when entry stops feeling cheap.
+
+The traps figure has already been changed once, and how it failed is worth copying. A hub's
+`traps.md` reached 46.7 KB against a 25 KB budget while its oldest entry was 65 days old, so no
+entry was eligible under the 90-day rule: the budget said rotate and the eligibility rule said you
+may not. A session resolved the contradiction by archiving evergreen traps to hit the number, and
+the file was back over budget the next morning — the rule had produced exactly the loss it exists
+to prevent. Raising the hub budget was the smaller half of the fix. The other half is that a budget
+now states plainly what it is: a signal, not a licence to break the eligibility rule. If your
+budgets never collide with your eligibility rules, you have not run them long enough yet.
 
 The version says v8 because the design went through eight revisions in private before this release.
 Versions 1 through 7 are not published and are not coming.

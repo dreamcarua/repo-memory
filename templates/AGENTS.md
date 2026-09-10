@@ -48,16 +48,21 @@ the new entry, in the same commit — with no git, in the same sitting, before y
 
 | File | Budget | What moves out | Where it goes |
 |---|---|---|---|
-| `traps.md` | 25 KB | entries older than 90 days that describe a one-off incident | `traps/archive-<YYYY>-Q<n>.md`, one summary line left behind |
+| `traps.md` | 25 KB in a code repo · 50 KB in a project hub — **keep the one that matches this carrier, delete the other** | entries older than 90 days that describe a one-off incident | `traps/archive-<YYYY>-Q<n>.md`, one summary line left behind |
 | `tasks.md` | 10 KB in a code repo · 25 KB in a project hub — **keep the one that matches this carrier, delete the other** | items whose author confirmed them done | `tasks/done-<YYYY>-MM.md`, verbatim, with the closing date |
 | `handoff.md` | 2 KB | anything at all, on Exit | nowhere: it is emptied, and what survives becomes a line in `tasks.md` |
 
 A hub's open tasks wait months on people, partners and money; a code repo's close when the code is written — hence the wider hub budget.
+A hub accumulates traps across a whole business rather than one codebase, so the same 25 KB buys far less there — hence the wider hub budget for traps too.
 An item waiting on a person, a partner or money is not a task: it belongs in `docs/open-questions.md`. `tasks.md` is for what someone can act on now.
 
 A trap that describes a permanent property of the system is evergreen: it stays regardless of age.
 A trap that describes one incident, already fixed and unlikely to repeat, is a candidate to archive.
 When in doubt keep it: archiving is cheap, losing a trap is not.
+
+The budget is a signal, not a licence to break the eligibility rule above. Over budget with nothing
+eligible: archive nothing, write one line in `docs/open-questions.md` — file, size, budget, nothing
+eligible under the 90-day rule, needs a human decision — and carry on with the task.
 
 The archive is never read on entry. It is read when a question points at it: "has this happened
 before", "why is it done this way". The index line left in the live file is what makes that possible,
