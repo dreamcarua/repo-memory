@@ -1,0 +1,23 @@
+name: Placeholder check
+
+# Fails if a real name, e-mail address, secret, absolute home path or stray Cyrillic string
+# has replaced a placeholder anywhere in the tree. See scripts/check-placeholders.py.
+#
+# Deliberately a separate workflow from install-build-check, not a second job in it: that one
+# is filtered to the build inputs (INSTALL.md, src/, templates/), so it would never fire on a
+# change to HARVEST.md, LICENSE, .gitignore or a newly added file - which is exactly where a
+# leak would land. This one has no path filter and runs on everything, every time.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: No leaked names, addresses, secrets or paths
+        run: python3 scripts/check-placeholders.py

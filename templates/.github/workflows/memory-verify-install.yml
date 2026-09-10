@@ -1,0 +1,46 @@
+name: memory verify install
+
+# Checks that this repository's MEMORY is still true: that every path AGENTS.md names exists, that
+# no install question was left unanswered, that no memory file has grown past its rotation budget,
+# and that no credential value has landed in the memory folder.
+#
+# THIS FILE IS THE TIER-3 CONVENIENCE, NOT THE CHECK. The check is scripts/verify-install.py:
+# standard library only, no network, no host. It runs exactly the same from a laptop
+# (`python3 scripts/verify-install.py .`), from a pre-commit hook, or from any other host's CI,
+# and a project with no CI at all loses the reminder and nothing else. Install this file only
+# where there is CI to run it - the capability is "run a check on push", not GitHub Actions.
+#
+# The script has to be committed next to it, at scripts/verify-install.py. Copy it in from the kit
+# at install time; this workflow deliberately downloads nothing, so that what runs on every push
+# is the version somebody reviewed.
+#
+# It fails the build only on a BLOCKING finding (exit 1) or a credential-shaped value (exit 2).
+# Advisory findings are printed and pass, on purpose: a job that goes red because traps.md is at
+# 80% of its budget is a job somebody switches off, and then the blocking findings stop being read
+# as well.
+
+on:
+  push:
+    paths: ["AGENTS.md", "CLAUDE.md", "docs/**", "memory/**",
+            "scripts/verify-install.py", ".github/workflows/**"]
+  pull_request:
+    paths: ["AGENTS.md", "CLAUDE.md", "docs/**", "memory/**",
+            "scripts/verify-install.py", ".github/workflows/**"]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: The installed memory still says what is true
+        run: |
+          set -uo pipefail
+          if [ ! -f scripts/verify-install.py ]; then
+            echo "::error::scripts/verify-install.py is missing. This workflow only runs it; the"
+            echo "::error::script is the check. Copy it in from the kit this memory was installed from,"
+            echo "::error::or delete this workflow - a runner with nothing to run is worse than neither."
+            exit 1
+          fi
+          python3 scripts/verify-install.py .

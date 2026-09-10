@@ -1,0 +1,29 @@
+name: INSTALL build check
+
+# INSTALL.md is assembled from src/INSTALL-head.md + templates/ by src/build.py.
+# This check catches exactly one failure: a template was changed and INSTALL.md was not rebuilt.
+# That is how, in v8.3, the Rotation section appeared in templates/AGENTS.md and never appeared
+# in the installer - and 13 carriers were installed without the rotation rule.
+
+on:
+  push:
+    paths:
+      - "INSTALL.md"
+      - "src/**"
+      - "templates/**"
+      - ".github/workflows/install-build-check.yml"
+  pull_request:
+    paths:
+      - "INSTALL.md"
+      - "src/**"
+      - "templates/**"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: INSTALL.md == src/INSTALL-head.md + templates/
+        run: python3 src/build.py --check

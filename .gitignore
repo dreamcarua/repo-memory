@@ -1,0 +1,29 @@
+# Secrets and credentials - never commit these
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+
+# Local-only memory: docs/tooling.local.md and friends are never committed
+*.local.md
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+
+# Editors
+.idea/
+*.swp

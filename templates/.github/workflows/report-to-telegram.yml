@@ -1,0 +1,63 @@
+name: report-to-telegram
+
+# Agent commits reports/YYYY-MM-DD-HHMM-<slug>.json on main → this sends it to the project Telegram chat.
+# Telegram is this kit's worked example, not a requirement. The pattern is: the agent commits a
+# small JSON report, something delivers it. Slack, Discord, e-mail and internal webhooks are
+# equally valid - replace the curl step below and leave the rest of the file as it is. The two
+# capabilities are "run on push" and "hold a secret"; with no CI at all, the agent writes the same
+# JSON file and runs the same curl itself, or the report is simply the commit message.
+# Secrets required (repo → Settings → Secrets → Actions, or `gh secret set NAME`):
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+# Install this file only once both secrets exist and are non-empty. Committed without them it fails
+# on the very first push, and a memory kit whose first act is a red build does not get a second try.
+# The trigger below says main: if this project's default branch is named something else, change it.
+# Plain text on purpose. Telegram's markdown and HTML parse modes reject or mangle a message
+# containing "<", ">" or an unbalanced "*" or "_", and a report is written by an agent that
+# cannot know in advance which characters a summary will contain. A silently dropped report is
+# worse than an ugly one, so nothing is escaped and no parse mode is set.
+
+on:
+  push:
+    branches: [main]
+    paths: ["reports/*.json"]
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Send new reports
+        env:
+          TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TOKEN" ] || [ -z "$CHAT" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set"; exit 1; fi
+          if git cat-file -e "$BEFORE" 2>/dev/null; then
+            FILES=$(git diff --name-only --diff-filter=A "$BEFORE" "$AFTER" -- 'reports/*.json')
+          else
+            FILES=$(git show --name-only --pretty= --diff-filter=A "$AFTER" -- 'reports/*.json')
+          fi
+          [ -z "$FILES" ] && { echo "no new reports"; exit 0; }
+          for f in $FILES; do
+            TEXT=$(jq -r '
+              "📋 " + (.project // "project") + " · " + (.date // "") +
+              "\n\n" + (.summary // "") +
+              (if .breaks_if_not_done then "\n\n⚠ If not done: " + .breaks_if_not_done else "" end) +
+              (if (.open_tasks // 0) > 0 then "\n\nOpen tasks: " + (.open_tasks|tostring) + ((.on_us // 0) as $u | if $u > 0 then " (" + ($u|tostring) + " on us)" else "" end) else "" end) +
+              (if .waiting_for then "\n\nWaiting for: " + .waiting_for else "" end) +
+              (if .link then "\n" + .link else "" end)
+            ' "$f" | head -c 3900)
+            RESP=$(curl -sS -X POST "https://api.telegram.org/bot${TOKEN}/sendMessage" \
+              --data-urlencode "chat_id=${CHAT}" \
+              --data-urlencode "text=${TEXT}" \
+              --data-urlencode "disable_web_page_preview=true")
+            echo "$RESP" | jq -e '.ok' >/dev/null || { echo "::error::Telegram refused $f: $RESP"; exit 1; }
+            echo "sent $f"
+          done
