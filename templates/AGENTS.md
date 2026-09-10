@@ -20,7 +20,7 @@ Chat without a folder? Nothing was loaded automatically: fetch this file and `do
 
 1. `docs/tasks.md` — what is open, what is handed over and waiting, where the next move is ours.
 2. `docs/handoff.md` — not empty means a previous session stopped mid-task. Continue, do not restart.
-3. `docs/traps.md` — before the first edit of code or config. Always.
+3. `docs/traps.md` — before the first edit of code or config. Always. A trap that then changes what you do earns `Memory-Used: traps.md#<slug>` in that commit's message — see Rotation.
 4. `docs/tooling.md` — before using any tool, MCP, server or account of this project.
 5. Recent commits — is someone else working here right now? No git here: `docs/changelog.md` and the modification times under `docs/` answer the same question, less well.
 6. Related carriers (below) — the task touches another carrier of this project, or knowledge that lives at project level: read its `AGENTS.md` and `tasks.md` too, before deciding anything. The Locator column says how to reach it; nothing here assumes an API.
@@ -39,6 +39,14 @@ Automatic. The user never asks for a checkpoint and is never reminded to.
 
 After each completed step of a multi-step task and before any long operation: rewrite `docs/handoff.md` (task verbatim, done, not done, next action, numbers with sources). Rewrite, do not append. Empty it when the task is handed over.
 
+## Surprise — write the moment an expectation turns out wrong
+
+A trigger, not a phase: it fires mid-task, whenever a system behaves differently from how you were confident it would behave. Write it to `docs/traps.md` **now**, before you finish the thought. This is the one place where writing beats finishing: the symptom is still there at Exit, the reason is not, and the reason is the half worth having.
+
+The bar is the expectation, not the error. A command that fails is ordinary work and is not this: `npm ci` exits 1 on a missing peer dependency, you install it, nothing to write. An expectation that was wrong is this: the deploy reports success and the site still serves the old bundle, because the CDN keys its cache on a path you did not change — you were certain a green deploy meant a live change, and it does not.
+
+Same shape as any trap — symptom, cause, what to do, date — and the cause is the point: **why** it happened, not only what you saw. About a tool as well as the code, it goes in `docs/tooling.md` too.
+
 ## Rotation — the other half of writing
 
 Automatic, like Checkpoint and Exit. Nobody asks for it.
@@ -52,13 +60,13 @@ the new entry, in the same commit — with no git, in the same sitting, before y
 | `tasks.md` | 10 KB in a code repo · 25 KB in a project hub — **keep the one that matches this carrier, delete the other** | items whose author confirmed them done | `tasks/done-<YYYY>-MM.md`, verbatim, with the closing date |
 | `handoff.md` | 2 KB | anything at all, on Exit | nowhere: it is emptied, and what survives becomes a line in `tasks.md` |
 
-A hub's open tasks wait months on people, partners and money; a code repo's close when the code is written — hence the wider hub budget.
-A hub accumulates traps across a whole business rather than one codebase, so the same 25 KB buys far less there — hence the wider hub budget for traps too.
 An item waiting on a person, a partner or money is not a task: it belongs in `docs/open-questions.md`. `tasks.md` is for what someone can act on now.
 
 A trap that describes a permanent property of the system is evergreen: it stays regardless of age.
 A trap that describes one incident, already fixed and unlikely to repeat, is a candidate to archive.
 When in doubt keep it: archiving is cheap, losing a trap is not.
+
+**Usefulness ratchets over age.** An entry that ever changed what a session did is never archived, whatever its age. When a trap you read changes what you then do, put `Memory-Used: traps.md#<slug of its heading>` in that commit's message — in the message, never in the file, because a mark written into `traps.md` would be erased by the very rotation it governs, and would churn the file on every read. Before archiving an entry, ask git: `git log --format='%(trailers:key=Memory-Used,valueonly)' | grep -qx 'traps.md#<slug>'`, or `git log --grep='^Memory-Used: traps.md#<slug>$' -1`. A hit means keep. No mark is not evidence the entry is dead, only that nobody has said otherwise — so among unmarked entries the 90-day rule decides exactly as before. **No git, no commit log, no ratchet:** at tier 1 age is all there is, and that is the whole of what tier 1 loses here.
 
 The budget is a signal, not a licence to break the eligibility rule above. Over budget with nothing
 eligible: archive nothing, write one line in `docs/open-questions.md` — file, size, budget, nothing

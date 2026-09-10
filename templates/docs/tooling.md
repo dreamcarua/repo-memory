@@ -73,8 +73,15 @@ this project reports some other way.
 
 `.github/workflows/memory-secret-scan.yml` fails the build if a value ever lands in the memory
 folder. The capability it needs is "run a check on push": on another host, the same script in that
-host's CI; with no CI at all, the same script in a `pre-commit` hook or run by hand before you
-commit. It is a backstop either way, not permission to be careless.
+host's CI; with no CI at all, the same script in a git hook or run by hand before you commit. It is
+a backstop either way, not permission to be careless.
+
+Two of the classes named above are checked by name, because the list above used to forbid them and
+no machine looked: a **chat, channel or group id** — matched by its context (next to `chat_id`,
+`channel_id`, `group`, in an assignment, a table cell, a JSON field or a URL parameter), never as a
+bare negative number, which cannot be told from any other integer — and a **webhook URL**, matched
+by host and shape (Slack, Discord, the Telegram bot API, Teams, and any `/webhook/` path carrying a
+long opaque segment). `scripts/verify-install.py` carries the same two.
 
 ## Entry patterns — how a recurring action is actually done here
 
@@ -83,6 +90,7 @@ usually guessable, the fallback never is.
 
 | Action | Steps | Fallback if the tool is down |
 |---|---|---|
+| **first commit in a fresh clone of this repo** | `git config core.hooksPath .githooks` — one command, per clone, not committed and not inherited. Without it `.githooks/commit-msg` (the guard that refuses a commit which changes the project and records nothing) is silently absent here | none needed; `python3 scripts/verify-install.py .` reports the missing setting as BLOCKING |
 | <deploy a backend function> | commit under `<functions path>` → <CI workflow> deploys | <vendor CLI> through <shell tool> |
 | <apply a schema change on production> | file under `<migrations path>` → <CI workflow> applies | <migration call of the database MCP> |
 | <publish a site change> | | |

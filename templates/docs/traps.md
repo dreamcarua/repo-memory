@@ -1,6 +1,8 @@
 # <Project> — traps
 
-Read before the first edit of code or config. Add an entry whenever something cost more than 15 minutes of surprise, in the same commit as the fix.
+Read before the first edit of code or config. Add an entry whenever something cost more than 15 minutes of surprise, in the same commit as the fix — and immediately, mid-task, whenever a system behaved differently from how you were confident it would behave (AGENTS.md → Surprise). The cause evaporates; the symptom does not. Write the cause first.
+
+Read an entry, then do something different because of it? Put `Memory-Used: traps.md#<slug of its heading>` in that commit's message. That mark is what keeps the entry out of the archive for good (AGENTS.md → Rotation). It lives in the commit message and never in this file: a mark written here would be erased by the rotation it exists to prevent.
 
 <!--
 Format:

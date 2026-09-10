@@ -3,7 +3,7 @@
 **Project memory for coding agents that lives with the project, not on one laptop.**
 
 An always-loaded index under 150 lines, the detail in `docs/`, size budgets that archive instead of
-deleting, and a session-end hook that speaks up when the code moved and the memory did not.
+deleting, and two hooks that speak up when the code moved and the memory did not.
 
 - **In the project, not in a home directory.** The memory is files that live next to the work. Put
   them in git and they are reviewed in pull requests, survive a new machine, and read the same for
@@ -13,10 +13,13 @@ deleting, and a session-end hook that speaks up when the code moved and the memo
 - **Budgets that archive rather than delete.** Each memory file has a byte budget. Over budget, the
   eligible entries move to a dated archive file verbatim and a searchable index line stays behind, in
   the same commit as the change. Nothing is summarised away.
-- **The write is the agent's job, not yours.** Entry, Checkpoint, Exit, Pre-flight and Rotation run
-  unprompted, because the user will not remember that these files exist. A `Stop` hook is included as
-  a partial backstop; it is Claude Code specific and it needs git, every other agent gets the
-  instruction and nothing enforced, and you should read what it cannot see before you rely on it.
+- **The write is the agent's job, not yours.** Entry, Checkpoint, Surprise, Pre-flight, Exit and
+  Rotation run unprompted, because the user will not remember that these files exist. Two backstops
+  are included and neither is the rule itself: a `Stop` hook, which is Claude Code specific, needs
+  git, and reads only the working tree; and a committed `commit-msg` guard that refuses a commit
+  whose staged files change the project and record nothing — that one needs nothing but git, and it
+  names its own escape, `Memory-Skip:`, in the refusal. Read what each cannot see before you rely
+  on it.
 
 ---
 
@@ -50,7 +53,7 @@ convention specifies no size at all. We set it under the 200-line ceiling Anthro
 
 **Tier 1 — a folder.** The memory is Markdown files in a directory. A folder on a desktop, a share
 on your own server, a Dropbox folder, an Obsidian vault, a folder of documents that are not code at
-all. No version control, no remote, no account, no CI. The format and all five procedures work here.
+all. No version control, no remote, no account, no CI. The format and all six procedures work here.
 Two of them lean on git for one step each and carry the alternative in the same line: Entry reads
 `changelog.md` and the file dates where it would read recent commits, and Exit writes its records
 before reporting instead of in the same commit. Reporting has a no-CI path too — the agent writes
@@ -58,9 +61,11 @@ the report file and delivery is whatever you already have, including nothing, in
 report is the commit message and the reply in the chat.
 
 **Tier 2 — git, any remote or none.** Commits, branches, "records in the same commit as the change",
-the concurrency check in Entry, the branch rule at install. All of that is plain git: GitLab, Gitea,
-Forgejo, a bare repo over SSH on your own machine, or a local repo with no remote at all. Where this
-kit says GitHub it means GitHub; everywhere else it says git and means git.
+the concurrency check in Entry, the branch rule at install, the commit guard, and Rotation's
+usefulness ratchet — which is a `git log` query and therefore does not exist at tier 1. All of that
+is plain git: GitLab, Gitea, Forgejo, a bare repo over SSH on your own machine, or a local repo with
+no remote at all. Where this kit says GitHub it means GitHub; everywhere else it says git and means
+git.
 
 **Tier 3 — a host with automation.** Three capabilities, named rather than abstracted: **run a check
 on push** (the secret scan, the INSTALL build check), **hold a secret** (the reporting token), and
@@ -72,7 +77,7 @@ only the CI user can read, and `git clone --depth 1`. There are no vendor adapte
 there will not be: write down which capability you use in `docs/tooling.md`, and the next session
 knows what it has.
 
-## The five procedures
+## The six procedures
 
 **Entry.** Before the first action that changes project state: read `tasks.md`, `handoff.md`,
 `traps.md`, `tooling.md` and the recent commits — with no git, `changelog.md` and the file dates
@@ -83,6 +88,15 @@ folder connected fetches these first.
 `handoff.md`: the task verbatim, what is done, what is not, the next action, numbers with their
 sources. Rewrite, never append. This is Manus's "recitation" applied to a file that survives
 compaction.
+
+**Surprise.** A trigger rather than a phase, and the only one that fires mid-task: the moment a
+system behaves differently from how you were confident it would behave, write it to `traps.md`
+before you finish the thought. The bar is the expectation, not the error — a command that fails is
+ordinary work and happens twenty times a session; a deploy that reports success while the site keeps
+serving the old bundle happens twice, and only the second one is an entry. Exit writes at the end,
+by which time the result has been tidied and the causal detail is gone; Checkpoint writes state, not
+knowledge. This is the one place in the kit where writing beats finishing, because the symptom
+survives to the end of the task and the reason does not.
 
 **Pre-flight.** Before anything irreversible, before money, before a shared resource, five questions
 answered out loud: who else writes here; what is the source of this number and its date; is this the
@@ -103,6 +117,17 @@ on people and money while a code task closes when the code is written. Over budg
 adding, archive verbatim, leave one searchable sentence behind. A budget is a signal, not a licence
 to break the eligibility rule: over budget with nothing eligible, the agent archives nothing and
 writes one line in `open-questions.md` instead.
+
+Age is a proxy for uselessness and not a good one, so usefulness ratchets over it. When a trap
+changes what a session then does, the session writes `Memory-Used: traps.md#<slug>` into that
+commit's message, and an entry that has ever carried such a mark is never archived, whatever its
+age — `git log --format='%(trailers:key=Memory-Used,valueonly)'` answers "has this ever been used"
+with no state file to keep. The mark lives in the commit message and never in the file, because a
+mark inside `traps.md` would be erased by the rotation it exists to govern. It is a ratchet, not a
+replacement: an absent mark does not prove an entry is dead, only that nobody has said otherwise, so
+among unmarked entries the 90-day rule decides exactly as before, and a project where nobody ever
+marks anything behaves exactly as it did. At tier 1 there is no commit log, so there is no ratchet
+and age is all there is.
 
 ## Hub and spokes
 
@@ -145,7 +170,8 @@ so a later session can tell a missing answer from a settled fact.
 Before the install reports back, it runs `scripts/verify-install.py`. It is the only check in this repo that
 reads an *installed* carrier rather than the kit: every path `AGENTS.md` names exists, no install
 question was left unanswered, `traps.md` is not an abandoned skeleton, no file has grown past its
-rotation budget, no credential value is committed. Standard library, no network, no host, so it runs
+rotation budget, `core.hooksPath` is set so the commit guard actually runs in this clone, no
+credential value is committed. Standard library, no network, no host, so it runs
 on a tier-1 folder; a template workflow re-runs it on every push where there is CI, and advisory
 findings do not fail the build.
 
@@ -174,8 +200,12 @@ for facts that should not be committed at all. If a value was already committed,
 remove the text second: removing it alone changes nothing, because git keeps history.
 
 A template secret-scan workflow is included and runs on every push to the memory folder, where there
-is CI to run it. With no CI, the same patterns belong in a `pre-commit` hook or in a manual pass
-before you commit; the capability is "run a check on push", not "GitHub Actions".
+is CI to run it. With no CI, the same patterns belong in a git hook or in a manual pass before you
+commit; the capability is "run a check on push", not "GitHub Actions". Two of the classes the threat
+model forbids are now checked by name rather than only forbidden in prose: a chat, channel or group
+id — matched by its context, never as a bare negative number, which nothing can distinguish from any
+other integer — and a webhook URL, matched by host and shape. `scripts/verify-install.py` carries the
+same two, so the document and the machine now say the same thing.
 
 ## What this builds on
 
@@ -234,17 +264,36 @@ Versions 1 through 7 are not published and are not coming.
 
 The procedures are prose in a file the agent reads. Anthropic states plainly that instruction files
 are "delivered as a user message after the system prompt" with "no guarantee of strict compliance."
-That is why the `Stop` hook exists, and why it is honest about what it cannot see: it reads the
-working tree, so a session that commits code and omits memory in the same commit passes unnoticed.
-It is also Claude Code only, and it needs git.
+That is why the hooks exist. The `Stop` hook is Claude Code only, needs git, and reads the working
+tree, so a session that commits code and omits memory in the same commit passes it unnoticed; the
+`commit-msg` guard reads the staged set instead and catches exactly that, needs nothing but git, and
+is also the one piece of enforcement any agent gets rather than only Claude Code. Neither writes
+memory. A hook cannot know what was learned.
+
+**This release buys enforcement with friction, and the bill arrives at install.** Three of the four
+changes in v8.6 are machinery rather than wording, and each costs something real. The commit guard
+adds a per-clone `git config core.hooksPath .githooks` that does not travel with the repository —
+forget it on a second machine and the guard is silently absent, which is why `verify-install.py`
+now reports an unset `core.hooksPath` as blocking, which is itself one more thing that can go red on
+you. The rotation ratchet asks a session to write a marker line into commit messages, and a marker
+nobody writes leaves rotation behaving exactly as it did before, so the honest claim is "no worse",
+not "better". The scanner's two new classes are two more chances to cry wolf on a memory folder that
+was fine, and they were narrowed against three live carriers precisely because of that. The kit is
+still a ten-minute install and a single afternoon to understand, but it now has five files that are
+copied and run rather than read, and that is a different kind of thing from a folder of Markdown.
+If your project is one person and one repository, install the memory and skip the machinery: the
+format is the part that pays for itself, and it always was.
 
 Tier 1 is real, and it is not equal. In a folder with no git there is no diff to review, no commit
-to bind a record to, no cheap answer to "is somebody else editing this right now", and the `Stop`
-hook is inert because it reads `git status`. Checkpoint and Rotation are unaffected; Entry loses its
-concurrency check and falls back to `changelog.md` and file dates; Pre-flight loses the first of its
-five questions and its rollback becomes a copy of the folder; Exit keeps every word of its content
-and loses only the atomicity of the write. That is the whole cost, and it is why `changelog.md`
-exists.
+to bind a record to, no cheap answer to "is somebody else editing this right now"; the `Stop` hook is
+inert because it reads `git status`, and the `commit-msg` guard does not exist because there are no
+commits. Checkpoint and Surprise are unaffected — Surprise writes a file and needs nothing else, so
+it is the only thing v8.6 adds that a tier-1 folder gets in full. Entry loses its concurrency check
+and falls back to `changelog.md` and file dates; Pre-flight loses the first of its five questions and
+its rollback becomes a copy of the folder; Exit keeps every word of its content and loses only the
+atomicity of the write; Rotation keeps its budgets and its eligibility rule and loses the usefulness
+ratchet, which is a `git log` query and nothing else. That is the whole cost, and it is why
+`changelog.md` exists.
 
 ## Licence
 

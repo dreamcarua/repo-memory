@@ -47,16 +47,28 @@ APPENDICES = [
     # A.9 contains its own ``` inside, so its fence is one character longer
     ("A.9 · `reports/README.md`",                      "reports/README.md",                      "markdown", "````"),
     ("A.10 · BOOTSTRAP - the line for a chat with no folder", None,                              "text",     "```"),
-    ("A.11 · `.github/workflows/memory-secret-scan.yml`",     ".github/workflows/memory-secret-scan.yml", "yaml", "```"),
-    ("A.12 · `.claude/hooks/memory-exit-reminder.sh`",        ".claude/hooks/memory-exit-reminder.sh",    "bash", "```"),
     ("__SPLIT__", None, None, None),
-    ("A.13 · `docs/decisions.md`",                     "docs/decisions.md",                      "markdown", "```"),
-    ("A.14 · `docs/changelog.md`",                     "docs/changelog.md",                      "markdown", "```"),
-    ("A.15 · `docs/open-questions.md`",                "docs/open-questions.md",                 "markdown", "```"),
-    ("A.16 · `docs/architecture.md`",                  "docs/architecture.md",                   "markdown", "```"),
-    ("A.17 · `docs/measurement.md`",                   "docs/measurement.md",                    "markdown", "```"),
-    ("A.18 · `docs/personal.md`",                      "docs/personal.md",                       "markdown", "```"),
+    ("A.11 · `docs/decisions.md`",                     "docs/decisions.md",                      "markdown", "```"),
+    ("A.12 · `docs/changelog.md`",                     "docs/changelog.md",                      "markdown", "```"),
+    ("A.13 · `docs/open-questions.md`",                "docs/open-questions.md",                 "markdown", "```"),
+    ("A.14 · `docs/architecture.md`",                  "docs/architecture.md",                   "markdown", "```"),
+    ("A.15 · `docs/measurement.md`",                   "docs/measurement.md",                    "markdown", "```"),
+    ("A.16 · `docs/personal.md`",                      "docs/personal.md",                       "markdown", "```"),
 ]
+
+# NOT in Appendix A, on purpose - Appendix C of INSTALL-head.md names them instead:
+#   scripts/verify-install.py
+#   templates/.github/workflows/memory-verify-install.yml
+#   templates/.github/workflows/memory-secret-scan.yml
+#   templates/.claude/hooks/memory-exit-reminder.sh
+#   templates/.githooks/commit-msg
+# Appendix A holds what the installer must EDIT: every one of those templates has angle brackets
+# in it that only this project's answers can fill. Those five are copied verbatim and run; the
+# most an installer changes is one variable at the top. Pasting them through the installer bought
+# nothing and cost 9.6 KB of a file whose size is its main complaint - and it added a way for
+# them to drift, because a copy in INSTALL.md can be stale while the file it copies is not.
+# verify-install.py was already handled this way before v8.6; this only makes the other four
+# consistent with it.
 
 SPLIT = "### Levels 1-2 - created when there is a first entry to put in them\n"
 

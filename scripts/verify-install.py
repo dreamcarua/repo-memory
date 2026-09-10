@@ -78,6 +78,27 @@ SECRET_PATTERNS = [
      re.compile(r"\b(?:postgres|postgresql|mysql|mongodb|redis|amqp)://[^:<>\s/]+:[^@<>\s]+@")),
     ("signed url",
      re.compile(r"[?&](?:X-Amz-Signature|X-Goog-Signature|sig|token)=[A-Za-z0-9%_-]{16,}")),
+    # tooling.md's threat model forbids these two by name and nothing here used to look for
+    # them. A chat id is matched BY CONTEXT and never as a bare number: a negative integer is
+    # indistinguishable from any other negative integer, and a pattern that fires on every
+    # measurement in the folder is a pattern somebody switches off. The key, then at most eight
+    # non-alphanumeric characters (":", "=", a quote, a table cell wall, a URL parameter), then
+    # the digits. A Secrets table row naming TELEGRAM_CHAT_ID has no digits in it and is safe.
+    ("chat, channel or group id",
+     re.compile(r"(?:chat|channel|group|peer)[ _-]?id[^A-Za-z0-9]{1,8}-?\d{6,}", re.IGNORECASE)),
+    # The one id shape that identifies itself: a Telegram supergroup or channel id is literally
+    # -100 followed by ten to thirteen digits.
+    ("telegram chat id",
+     re.compile(r"(?<![0-9A-Za-z_.-])-100\d{10,13}(?!\d)")),
+    # A webhook URL, by host and shape. Holding one is the ability to post into somebody's
+    # channel; it is not less of a credential for having no field called "token" in it.
+    ("webhook url", re.compile(
+        r"hooks\.slack\.com/(?:services|workflows|triggers)/[A-Za-z0-9+/_-]{16,}"
+        r"|discord(?:app)?\.com/api/webhooks/\d{15,}/[A-Za-z0-9_-]{20,}"
+        r"|api\.telegram\.org/bot\d{8,10}:[A-Za-z0-9_-]{35}"
+        r"|webhook\.office\.com/webhookb2/[A-Za-z0-9@/_-]{20,}"
+        r"|outlook\.office(?:365)?\.com/webhook/[A-Za-z0-9@/_-]{20,}"
+        r"|https?://[^\s<>]+/webhooks?/[A-Za-z0-9_-]{24,}")),
 ]
 
 # A line that explains what the unanswered-question marker means is not itself an unanswered
@@ -760,6 +781,56 @@ def check_hook(root, rep):
                    "Merge into an existing hooks block, do not replace it.")
 
 
+def in_ci():
+    return bool(os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"))
+
+
+def check_commit_guard(root, rep):
+    """.githooks/commit-msg refuses a commit that changes the project and records nothing.
+
+    The hook is committed - that is the point of .githooks/ - but the setting that makes git run
+    it, core.hooksPath, lives in .git/config and is per clone. It is not committed, not inherited
+    by a clone, and nothing tells you it is missing: the guard is simply absent and every commit
+    goes through. So this check is the thing that says so out loud. It is BLOCKING on a real
+    clone, because step 6 of the installer will not finish while a blocking finding stands, and
+    ADVISORY under CI, where a runner can never have the setting and a red build over it would
+    only teach somebody to delete the workflow."""
+    if not os.path.isdir(os.path.join(root, ".git")):
+        return                      # tier 1: no git, no hooks, nothing to say
+    hook = os.path.join(root, ".githooks", "commit-msg")
+    if not os.path.isfile(hook):
+        rep.advise(".githooks/commit-msg",
+                   "The commit guard is not installed. The Stop hook reads the working tree, so "
+                   "a session that commits code and memory-nothing in the same commit passes it "
+                   "unnoticed - and Exit's own rule, records in the same commit as the change, "
+                   "makes that the normal path rather than a rare one.",
+                   "Copy templates/.githooks/commit-msg from the kit to .githooks/commit-msg, "
+                   "chmod +x it, commit it, and run: git config core.hooksPath .githooks")
+        return
+    if not os.access(hook, os.X_OK):
+        rep.advise(".githooks/commit-msg",
+                   "The commit guard is committed but not executable, so git skips it silently.",
+                   "chmod +x .githooks/commit-msg and commit the mode change.")
+    configured = (git(root, "config", "--get", "core.hooksPath") or "").strip()
+    if configured.rstrip("/") in (".githooks", "./.githooks",
+                                  os.path.join(root, ".githooks").rstrip("/")):
+        return
+    problem = ("core.hooksPath is %s in this clone, so .githooks/commit-msg never runs here. The "
+               "hook is committed; the setting that runs it is not, and it does not travel - a "
+               "fresh clone, a second machine and every colleague start without it. Nothing else "
+               "reports its absence, which is why this line exists."
+               % ("unset" if not configured else "set to %r" % configured))
+    fix = ("Run: git config core.hooksPath .githooks - once per clone. If this project already "
+           "keeps hooks in .git/hooks, move them into .githooks/ first: core.hooksPath replaces "
+           "that directory wholesale. Record the command in the Entry patterns table of "
+           "tooling.md so the next session in a fresh clone just runs it.")
+    if in_ci():
+        rep.advise(".githooks/commit-msg", problem + " Reported as advisory because this is a CI "
+                   "checkout, where the setting cannot exist.", fix)
+    else:
+        rep.block(".githooks/commit-msg", problem, fix)
+
+
 def git(root, *args):
     try:
         out = subprocess.check_output(["git", "-C", root] + list(args),
@@ -873,6 +944,7 @@ def main():
         check_folder_naming(root, mem, rep, files, mem_texts)
     check_secrets(root, rep, all_files_under_memory(root, mem))
     check_hook(root, rep)
+    check_commit_guard(root, rep)
     has_git = check_git(root, mem, rep, files)
 
     tier = "1 - a folder: no git, no host, no automation"

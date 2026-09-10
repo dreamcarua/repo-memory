@@ -12,7 +12,8 @@ system into project <name>. My answers are at the top." Open that chat somewhere
 folder connected, or with a host MCP, or with an authenticated CLI in a shell. A plain folder with no
 version control is a supported target: see the three tiers at the top of step 0.
 
-The file is self-contained: all the templates are in Appendix A.
+Everything the install has to fill in is in Appendix A. The five files it only copies and runs — the
+verifier, two workflows and two hooks — are named in Appendix C with the URL to fetch each from.
 
 ## The answers — before the install starts
 
@@ -81,13 +82,16 @@ Do not: describe architecture visible from the code; rewrite the rules "more sof
 **Three tiers. Establish which one this install is on and name it in the closing summary.**
 
 - **Tier 1 — a folder.** Markdown files in a directory: a desktop, the owner's own server, a
-  Dropbox folder, an Obsidian vault, documents that are not code at all. The format and all five
+  Dropbox folder, an Obsidian vault, documents that are not code at all. The format and all six
   procedures work; where one leans on git it carries the no-git clause in the same line (Entry
   reads `docs/changelog.md` and file dates instead of recent commits; Exit writes its records
-  before reporting). Install no workflows and no hook, and say so.
+  before reporting). Install no workflows, no hooks and no commit guard, and say so — and say the
+  one thing tier 1 loses outright: Rotation's usefulness ratchet reads the commit log, and there
+  is no commit log here, so age alone decides what is archived.
 - **Tier 2 — git, any remote or none.** Commits, branches, "records in the same commit", the
-  concurrency check in Entry, the `memory-v8` rule in step 6: plain git, so GitLab, Gitea, Forgejo,
-  a bare repo over SSH or no remote at all all work.
+  concurrency check in Entry, Rotation's usefulness ratchet, the commit guard of step 3 and the
+  `memory-v8` rule in step 6: plain git, so GitLab, Gitea, Forgejo, a bare repo over SSH or no
+  remote at all all work.
 - **Tier 3 — a host with automation.** Exactly three capabilities: **run a check on push**, **hold
   a secret**, **fetch a file from a related carrier**. GitHub Actions, repo secrets and the GitHub
   MCP are written out below because they are the ones that have been run; elsewhere the same three
@@ -165,16 +169,38 @@ Merge rules, if the project already has instruction files:
 - `.cursor/rules/*.mdc` with `globs:` you leave as they are — that is conditional loading, it does not compete for the budget;
 - the new `CLAUDE.md` is one line, `@AGENTS.md` — Anthropic's own documented recommendation, because Claude Code reads `CLAUDE.md` and not `AGENTS.md`, so the import stops two copies drifting apart. Cursor, Codex and Copilot read `AGENTS.md` directly.
 
-Two more files go in at level 0, both about keeping the memory safe and current:
+Then the machinery: five files that are copied, not filled in. Appendix C has the path of each in
+this kit; fetch them from there rather than retyping them. Prose does not hold, and each of these
+turns one written rule into something that runs.
 
-- `.github/workflows/memory-secret-scan.yml` (A.11) where there is CI to run it — the capability is "run a check on push", so elsewhere it is that host's CI, and with none it is a `pre-commit` hook or a manual pass — plus `*.local.md` in `.gitignore`. `tooling.md` says how to get into every system, which makes it the one memory file worth attacking; the scan stops a credential value being committed there, and `docs/tooling.local.md` takes anything that must not be committed at all. Read the top of A.5 first.
+- `.githooks/commit-msg` + `git config core.hooksPath .githooks` + `*.local.md` in `.gitignore`.
+  The guard refuses a commit whose staged files change the project and change nothing in the memory
+  folder — the case the `Stop` hook structurally cannot see, and the one Exit's own rule ("records
+  in the same commit as the change") makes ordinary. It is the only enforcement in the kit that
+  works at tier 2 with no host at all. **Two things to say out loud to the user, not to skip.**
+  First: hooks are not versioned, so the file is committed under `.githooks/` and the setting that
+  runs it is per clone — a fresh clone, a second machine and every colleague start without it.
+  Run the config command yourself now, and put it in the Entry patterns table of `tooling.md`;
+  `verify-install.py` reports an unset `core.hooksPath` as BLOCKING, which is what keeps the
+  omission from being silent. Second: the one escape is `Memory-Skip: <why>` in the commit message
+  — the refusal message names it, so the user learns it at the moment they need it, and
+  `git log --grep='^Memory-Skip:'` says how often the project reaches for it. Do not install it in
+  a repo that has hooks in `.git/hooks` without moving those into `.githooks/` first:
+  `core.hooksPath` replaces that directory wholesale. No git at all — skip it and say so.
 - `scripts/verify-install.py` and, where there is CI to run it,
-  `templates/.github/workflows/memory-verify-install.yml` — both copied from this kit, never one
-  without the other: the script is the check and the workflow is only its runner. Neither is in
-  Appendix A for that reason. It re-runs step 6 point 2 on every push, so the memory cannot rot
-  quietly after the install; advisory findings are printed and do not fail the build. No CI, or
-  tier 1 — install neither, and run the script by hand or from a `pre-commit` hook.
-- `.claude/hooks/memory-exit-reminder.sh` (A.12), registered in `.claude/settings.json` as its header shows. Exit and Checkpoint are instructions in a file the agent may or may not follow; the hook is where forgetting them stops being silent. The prose stays the substance — the hook cannot write memory, only notice that none was written. **Claude Code only, and git only**: `Stop`/`PreCompact` are Claude Code hook events and the script reads `git status`. For Cursor, Codex or Copilot, and for a tier-1 folder, there is no equivalent — the instruction in `AGENTS.md` is all there is. Install it where it works and say plainly where it does not.
+  `.github/workflows/memory-verify-install.yml` — never one without the other: the script is the
+  check and the workflow is only its runner. It re-runs step 6 point 2 on every push, so the memory
+  cannot rot quietly after the install; advisory findings are printed and do not fail the build.
+  No CI, or tier 1 — install the script alone and run it by hand.
+- `.github/workflows/memory-secret-scan.yml` where there is CI to run it. `tooling.md` says how to
+  get into every system, which makes it the one memory file worth attacking; the scan stops a
+  credential value being committed there, and `docs/tooling.local.md` takes anything that must not
+  be committed at all. Read the top of A.5 first. Set `MEM` to `memory` if step 0 chose that folder.
+- `.claude/hooks/memory-exit-reminder.sh`, registered in `.claude/settings.json` as its header
+  shows. **Claude Code only, and git only**: `Stop`/`PreCompact` are Claude Code hook events and
+  the script reads `git status`. For Cursor, Codex or Copilot there is no equivalent — the
+  instruction in `AGENTS.md` and the commit guard above are all there is. Set `MEMORY_DIR` the same
+  way. Install it where it works and say plainly where it does not.
 
 File-level technical warnings (edit both copies, change the owner after copying) do not go into `AGENTS.md`: they go into `.claude/rules/<topic>.md` with `paths:` (template A.7) **and** a header comment in the file itself, because a conditional rule does not survive compaction and a file header does.
 
@@ -201,14 +227,9 @@ The link is made by two insertions, both at installation time:
 2. In every spoke — the line `Project hub: <hub locator>` under the carrier line, point 6 in Entry, and a line in Exit: "learned about the business rather than about this code → write it to the hub".
 
 **How a carrier points at another carrier.** A locator is whatever addresses it, and its kind is
-the whole of the mechanism — there is nothing else to build. How the agent reads the other
-`AGENTS.md` + `tasks.md`, by kind:
-
-- a path on the same machine (`../other-project`, `/srv/projects/x`, `~/Documents/Client A`) — read the files; no network, no credentials;
-- a git remote (`https://gitlab.com/org/repo.git`, `https://gitea.example.tld/org/repo`, or the SSH form) — `git clone --depth 1 --filter=blob:none` into a temp directory, read, delete it;
-- a readable file tree over HTTP (a raw-file base URL) — one fetch per file;
-- a host with an API (`github.com/<org>/<repo>`) — its MCP or CLI (`gh api`, `glab api`), no clone.
-
+the whole of the mechanism — there is nothing else to build. The four kinds, and how the agent
+reads the other `AGENTS.md` + `tasks.md` from each, are written out in template A.1 under Related
+carriers: copy that list into the carrier rather than paraphrasing it here, so one wording governs.
 Write the locator in the form the agent will actually use, record in `docs/tooling.md` what it needs
 to use it, and report a carrier you cannot reach rather than guessing at it.
 
@@ -291,18 +312,17 @@ A contradiction between two chats is not settled silently: both versions into `o
      another author *and* under 24 hours old. Check both halves (`git log -1 --format='%an · %ar'`,
      or the MCP's commit list): a history that merely contains other authors does not qualify, and
      treating it as concurrent activity sends every install to a branch nobody asked for.
-2. Verify with a machine, not by eye. Fetch `scripts/verify-install.py` from this kit and run it
-   against the carrier root: `python3 verify-install.py <carrier path>`. Standard library, no
-   network, no host, so it runs at tier 1 too. It reads the install you just made and checks what
-   this step used to ask you to check by hand: the line budget, every path named in the Map and in
-   Entry and Exit, unanswered `<?>`, a `traps.md` left as an empty skeleton, a Related carriers
-   table holding only the placeholder, a workflow whose secrets are recorded nowhere, every file
-   against its rotation budget, and a credential value anywhere in the memory folder. Fix
-   everything it prints under BLOCKING, run it again until it exits 0, and give the user its
-   closing line in step 7. Cannot fetch it? Say so in the summary and check those by hand — but do
-   **not** grep for the words `token`, `secret` or `password`: `tooling.md`'s own threat-model prose
-   contains them about twenty times on a correct install, and a check that cries wolf on a good
-   install gets ignored on a bad one.
+2. Verify with a machine, not by eye. Run `python3 scripts/verify-install.py <carrier path>`
+   (Appendix C). Standard library, no network, no host, so it runs at tier 1 too. It reads the
+   install you just made and checks by machine everything this step used to ask you to check by
+   eye — the line budget, every path the index names, unanswered `<?>`, an empty trap skeleton, a
+   placeholder-only carriers table, a workflow whose secrets are recorded nowhere, every file
+   against its budget, an unset `core.hooksPath`, and a credential value anywhere in the memory
+   folder. Fix everything it prints under BLOCKING, run it again until it exits 0, and give the
+   user its closing line in step 7. Cannot fetch it? Say so in the summary and check by hand — but
+   do **not** grep for the words `token`, `secret` or `password`: `tooling.md`'s own threat-model
+   prose contains them about twenty times on a correct install, and a check that cries wolf on a
+   good install gets ignored on a bad one.
 3. Run Entry from `AGENTS.md` once, **out loud** — the first sentence of a session with memory. If
    it will not come out because `tasks.md` is empty, decide which empty it is: genuinely nothing
    open, say so and move on; question 7 never answered, write one line in `tasks.md` saying the
@@ -315,8 +335,10 @@ A contradiction between two chats is not settled silently: both versions into `o
    on and what that tier does not give them, and the verifier's closing line from step 6.
 2. The starting budget: how many lines there are in `AGENTS.md`.
 3. The BOOTSTRAP line for chats without a folder — ready to copy (template A.10, filled in).
-4. What is left for the human: any unset secrets; the HARVEST of the old chats (`HARVEST.md`, the
-   highest-value thing left undone); every `<?>` still open, by question number.
+4. What is left for the human: `git config core.hooksPath .githooks` in every other clone of this
+   repo, on every machine, because that setting does not travel and the commit guard is inert
+   without it; any unset secrets; the HARVEST of the old chats (`HARVEST.md`, the highest-value
+   thing left undone); every `<?>` still open, by question number.
 5. The first Entry sentence, the one you just said.
 
 ---
@@ -330,6 +352,9 @@ A contradiction between two chats is not settled silently: both versions into `o
 | a task just given, or done but not yet confirmed | `docs/tasks.md` |
 | work broke off mid-task; every step of a long task | `docs/handoff.md` (rewrite it) |
 | a surprise that cost more than 15 minutes | `docs/traps.md`, in the same commit |
+| a system behaved differently from how you were sure it would | `docs/traps.md`, **now**, mid-task — cause first (AGENTS.md → Surprise) |
+| a trap you read changed what you then did | `Memory-Used: traps.md#<slug>` in that commit's message — never in the file (AGENTS.md → Rotation) |
+| this commit genuinely needs no memory | `Memory-Skip: <why>` in that commit's message |
 | how to get into a tool, where a secret lives, how to send a report | `docs/tooling.md` |
 | why this way and not another; a rejected idea with the number that rejected it | `docs/decisions.md` |
 | a change made outside git (database, panel, CDN, manual run) | `docs/changelog.md` |
@@ -340,6 +365,30 @@ A contradiction between two chats is not settled silently: both versions into `o
 | what is visible from the code | **nowhere** |
 
 Budget: `AGENTS.md` ≤ 150 lines (argued under principle 2). `tasks.md` at around 80 lines is a signal, not a limit; the rest of `docs/` is unlimited, because it is read on demand.
+
+---
+
+## Appendix C. The five files that are copied, not filled in
+
+Appendix A holds what you must **edit**: every template there has angle brackets in it that only
+this project's answers can fill. These five you **copy and run**; at most you set one variable at
+the top of each. Pasting them through this installer added 9.6 KB to a file whose size is its main
+complaint, and gave them a way to drift — a copy here can be stale while the file it copies is not.
+So they are fetched from the kit instead: the repository you took this file from, at the paths
+below.
+
+| Path in the kit | Install to | Needs | Set before committing |
+|---|---|---|---|
+| `templates/.githooks/commit-msg` | `.githooks/commit-msg`, `chmod +x` | git (tier 2) | nothing; then `git config core.hooksPath .githooks`, once per clone |
+| `scripts/verify-install.py` | `scripts/verify-install.py` | nothing (tier 1) | nothing |
+| `templates/.github/workflows/memory-verify-install.yml` | `.github/workflows/` | CI (tier 3) | nothing |
+| `templates/.github/workflows/memory-secret-scan.yml` | `.github/workflows/` | CI (tier 3) | `MEM:` — `docs` or `memory` |
+| `templates/.claude/hooks/memory-exit-reminder.sh` | `.claude/hooks/`, `chmod +x` | Claude Code + git | `MEMORY_DIR` — `docs` or `memory`; register it in `.claude/settings.json` |
+
+Cannot fetch them — no network in this session, or the kit is unreachable? Install what you can,
+say plainly in the closing summary which of the five are missing and what each would have caught,
+and put a line in `docs/tasks.md` for the owner. Do not reconstruct one from memory: a guard that
+is subtly wrong is worse than one that is absent, because the absent one is not trusted.
 
 ---
 
@@ -372,7 +421,7 @@ Chat without a folder? Nothing was loaded automatically: fetch this file and `do
 
 1. `docs/tasks.md` — what is open, what is handed over and waiting, where the next move is ours.
 2. `docs/handoff.md` — not empty means a previous session stopped mid-task. Continue, do not restart.
-3. `docs/traps.md` — before the first edit of code or config. Always.
+3. `docs/traps.md` — before the first edit of code or config. Always. A trap that then changes what you do earns `Memory-Used: traps.md#<slug>` in that commit's message — see Rotation.
 4. `docs/tooling.md` — before using any tool, MCP, server or account of this project.
 5. Recent commits — is someone else working here right now? No git here: `docs/changelog.md` and the modification times under `docs/` answer the same question, less well.
 6. Related carriers (below) — the task touches another carrier of this project, or knowledge that lives at project level: read its `AGENTS.md` and `tasks.md` too, before deciding anything. The Locator column says how to reach it; nothing here assumes an API.
@@ -391,6 +440,14 @@ Automatic. The user never asks for a checkpoint and is never reminded to.
 
 After each completed step of a multi-step task and before any long operation: rewrite `docs/handoff.md` (task verbatim, done, not done, next action, numbers with sources). Rewrite, do not append. Empty it when the task is handed over.
 
+## Surprise — write the moment an expectation turns out wrong
+
+A trigger, not a phase: it fires mid-task, whenever a system behaves differently from how you were confident it would behave. Write it to `docs/traps.md` **now**, before you finish the thought. This is the one place where writing beats finishing: the symptom is still there at Exit, the reason is not, and the reason is the half worth having.
+
+The bar is the expectation, not the error. A command that fails is ordinary work and is not this: `npm ci` exits 1 on a missing peer dependency, you install it, nothing to write. An expectation that was wrong is this: the deploy reports success and the site still serves the old bundle, because the CDN keys its cache on a path you did not change — you were certain a green deploy meant a live change, and it does not.
+
+Same shape as any trap — symptom, cause, what to do, date — and the cause is the point: **why** it happened, not only what you saw. About a tool as well as the code, it goes in `docs/tooling.md` too.
+
 ## Rotation — the other half of writing
 
 Automatic, like Checkpoint and Exit. Nobody asks for it.
@@ -404,13 +461,13 @@ the new entry, in the same commit — with no git, in the same sitting, before y
 | `tasks.md` | 10 KB in a code repo · 25 KB in a project hub — **keep the one that matches this carrier, delete the other** | items whose author confirmed them done | `tasks/done-<YYYY>-MM.md`, verbatim, with the closing date |
 | `handoff.md` | 2 KB | anything at all, on Exit | nowhere: it is emptied, and what survives becomes a line in `tasks.md` |
 
-A hub's open tasks wait months on people, partners and money; a code repo's close when the code is written — hence the wider hub budget.
-A hub accumulates traps across a whole business rather than one codebase, so the same 25 KB buys far less there — hence the wider hub budget for traps too.
 An item waiting on a person, a partner or money is not a task: it belongs in `docs/open-questions.md`. `tasks.md` is for what someone can act on now.
 
 A trap that describes a permanent property of the system is evergreen: it stays regardless of age.
 A trap that describes one incident, already fixed and unlikely to repeat, is a candidate to archive.
 When in doubt keep it: archiving is cheap, losing a trap is not.
+
+**Usefulness ratchets over age.** An entry that ever changed what a session did is never archived, whatever its age. When a trap you read changes what you then do, put `Memory-Used: traps.md#<slug of its heading>` in that commit's message — in the message, never in the file, because a mark written into `traps.md` would be erased by the very rotation it governs, and would churn the file on every read. Before archiving an entry, ask git: `git log --format='%(trailers:key=Memory-Used,valueonly)' | grep -qx 'traps.md#<slug>'`, or `git log --grep='^Memory-Used: traps.md#<slug>$' -1`. A hit means keep. No mark is not evidence the entry is dead, only that nobody has said otherwise — so among unmarked entries the 90-day rule decides exactly as before. **No git, no commit log, no ratchet:** at tier 1 age is all there is, and that is the whole of what tier 1 loses here.
 
 The budget is a signal, not a licence to break the eligibility rule above. Over budget with nothing
 eligible: archive nothing, write one line in `docs/open-questions.md` — file, size, budget, nothing
@@ -542,7 +599,9 @@ Rules (see AGENTS.md → Entry/Exit):
 ```markdown
 # <Project> — traps
 
-Read before the first edit of code or config. Add an entry whenever something cost more than 15 minutes of surprise, in the same commit as the fix.
+Read before the first edit of code or config. Add an entry whenever something cost more than 15 minutes of surprise, in the same commit as the fix — and immediately, mid-task, whenever a system behaved differently from how you were confident it would behave (AGENTS.md → Surprise). The cause evaporates; the symptom does not. Write the cause first.
+
+Read an entry, then do something different because of it? Put `Memory-Used: traps.md#<slug of its heading>` in that commit's message. That mark is what keeps the entry out of the archive for good (AGENTS.md → Rotation). It lives in the commit message and never in this file: a mark written here would be erased by the rotation it exists to prevent.
 
 <!--
 Format:
@@ -640,8 +699,15 @@ this project reports some other way.
 
 `.github/workflows/memory-secret-scan.yml` fails the build if a value ever lands in the memory
 folder. The capability it needs is "run a check on push": on another host, the same script in that
-host's CI; with no CI at all, the same script in a `pre-commit` hook or run by hand before you
-commit. It is a backstop either way, not permission to be careless.
+host's CI; with no CI at all, the same script in a git hook or run by hand before you commit. It is
+a backstop either way, not permission to be careless.
+
+Two of the classes named above are checked by name, because the list above used to forbid them and
+no machine looked: a **chat, channel or group id** — matched by its context (next to `chat_id`,
+`channel_id`, `group`, in an assignment, a table cell, a JSON field or a URL parameter), never as a
+bare negative number, which cannot be told from any other integer — and a **webhook URL**, matched
+by host and shape (Slack, Discord, the Telegram bot API, Teams, and any `/webhook/` path carrying a
+long opaque segment). `scripts/verify-install.py` carries the same two.
 
 ## Entry patterns — how a recurring action is actually done here
 
@@ -650,6 +716,7 @@ usually guessable, the fallback never is.
 
 | Action | Steps | Fallback if the tool is down |
 |---|---|---|
+| **first commit in a fresh clone of this repo** | `git config core.hooksPath .githooks` — one command, per clone, not committed and not inherited. Without it `.githooks/commit-msg` (the guard that refuses a commit which changes the project and records nothing) is silently absent here | none needed; `python3 scripts/verify-install.py .` reports the missing setting as BLOCKING |
 | <deploy a backend function> | commit under `<functions path>` → <CI workflow> deploys | <vendor CLI> through <shell tool> |
 | <apply a schema change on production> | file under `<migrations path>` → <CI workflow> applies | <migration call of the database MCP> |
 | <publish a site change> | | |
@@ -846,207 +913,9 @@ Project: <name>. Memory carrier: <locator>.
 Before the first action that changes project state: read AGENTS.md from the carrier - a file read, a shallow clone, or a host API call, whichever the locator kind calls for - and run its Entry (tasks.md, handoff.md, traps.md, tooling.md, recent commits), then say the one-sentence state. Write back to the carrier at Exit. Reply in <language>.
 ```
 
-### A.11 · `.github/workflows/memory-secret-scan.yml`
-
-```yaml
-name: memory secret scan
-
-# Fails if a credential VALUE lands in the project's memory folder.
-#
-# docs/tooling.md tells an agent to write down how to get into every system. That file is useful
-# exactly because it is specific, and dangerous for the same reason: it is model-authored, committed
-# by default, copied into every fork, and kept in git history forever. The rule "names and places,
-# never values" is prose, and prose is not enforcement. This is the enforcement.
-#
-# It is a backstop for the obvious shapes, not a secret scanner. It will not catch a hostname, an
-# account id or a password that looks like a word. Read docs/tooling.md before writing, and treat a
-# value that reaches this check as already compromised: rotate first, then remove the text.
-#
-# MEM is the memory folder. It is docs/ by default and memory/ on a GitHub Pages repo - set it to
-# whichever this project uses.
-#
-# The capability is "run a check on push", not GitHub Actions: on another host run the same script
-# in that host's CI, with no CI run it from a pre-commit hook or by hand. The patterns are portable.
-
-on:
-  push:
-    paths: ["docs/**", "memory/**"]
-  pull_request:
-    paths: ["docs/**", "memory/**"]
-  workflow_dispatch:
-
-jobs:
-  scan:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    env:
-      MEM: docs
-    steps:
-      - uses: actions/checkout@v4
-      - name: No credential values in the memory folder
-        run: |
-          set -uo pipefail
-          if [ ! -d "$MEM" ]; then echo "no $MEM/ directory; nothing to scan"; exit 0; fi
-
-          # Ten shapes that are a VALUE wherever they appear. Keep the list short and obvious;
-          # a pattern that fires on ordinary prose gets ignored, which is worse than no check.
-          PATTERNS='
-          gh[pousr]_[A-Za-z0-9]{20,}
-          \bsk-[A-Za-z0-9]{20,}
-          AKIA[0-9A-Z]{16}
-          xox[abprs]-[A-Za-z0-9-]{10,}
-          [0-9]{8,10}:[A-Za-z0-9_-]{35}
-          eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.
-          -----BEGIN [A-Z ]*PRIVATE KEY-----
-          sb[pous]?_[A-Za-z0-9]{20,}
-          (postgres|postgresql|mysql|mongodb|redis|amqp)://[^:<>[:space:]]+:[^@<>[:space:]]+@
-          [?&](X-Amz-Signature|X-Goog-Signature|sig|token)=[A-Za-z0-9%_-]{16,}
-          '
-
-          # Two of those carry a qualifier that was put there after running the list against real
-          # carriers, and both are as narrow as the false positive they remove:
-          #   \bsk-  - without the word boundary this fires on "task-", "risk-" and "disk-"
-          #            followed by any 20 characters. A real key always starts at a boundary.
-          #   <>     - a userinfo segment containing an angle bracket is a documented TEMPLATE
-          #            (postgres://<user>:<password>@host), not a credential. A real password
-          #            cannot carry a raw "<" in a URI anyway; it has to be percent-encoded.
-
-          FOUND=0
-          while IFS= read -r pat; do
-            [ -z "$pat" ] && continue
-            # Exclude the file that documents these shapes, if the project keeps one.
-            # -e is required: a pattern starting with "-" (the PEM header) would otherwise
-            # be parsed as options and that pattern would silently never run.
-            if grep -rInE --exclude='*.local.md' -e "$pat" "$MEM" ; then
-              FOUND=1
-            fi
-          done <<< "$PATTERNS"
-
-          # The eleventh shape needs a step of its own. A run of 40 or more hex characters is what
-          # several API keys look like - and equally what a content hash looks like in an asset
-          # filename or a URL path. Unqualified, it fired four times on ONE image name inside a
-          # public og:image URL in a real carrier's memory folder. A scan that goes red over a
-          # picture is a scan somebody switches off, and then the other ten stop being read too.
-          # So: match the whole whitespace-delimited token that contains the run, then drop that
-          # token when the run is preceded by "/" or followed by an asset extension. A bare blob -
-          # in a table cell, after "=", inside quotes - still fails the build.
-          ASSETS='png|jpe?g|webp|gif|svg|ico|js|css|map|html?|woff2?|mp4|pdf|zip'
-          if grep -rInoE --exclude='*.local.md' -e '[^[:space:]]*[0-9a-f]{40,}[^[:space:]]*' "$MEM" \
-             | grep -vE "/[0-9a-f]{40,}|[0-9a-f]{40,}\.($ASSETS)" ; then
-            FOUND=1
-          fi
-
-          if [ "$FOUND" = "1" ]; then
-            echo "::error::A credential-shaped value is committed in $MEM/. Rotate it first, then remove the text - it is already in git history. See $MEM/tooling.md."
-            exit 1
-          fi
-          echo "no credential-shaped values in $MEM/"
-```
-
-### A.12 · `.claude/hooks/memory-exit-reminder.sh`
-
-```bash
-#!/bin/sh
-# memory-exit-reminder - the enforcement point for Exit and Checkpoint.
-#
-# CLAUDE CODE ONLY, AND GIT ONLY. Stop and PreCompact are Claude Code hook events, no other agent
-# has them, and this reads `git status`, so outside a work tree it exits 0 and checks nothing. For
-# Cursor, Codex or Copilot, and for a memory folder with no version control, the equivalent is the
-# instruction in AGENTS.md (or .cursorrules) and nothing enforced - say so plainly rather than
-# implying a backstop that is not there.
-#
-# WHY THIS EXISTS
-# AGENTS.md asks the agent to run Exit before saying "done" and to rewrite handoff.md at every
-# Checkpoint. Anthropic documents that instruction-file content is "delivered as a user message
-# after the system prompt" and that "there's no guarantee of strict compliance", and says that
-# anything which must run at a specific point should be a hook, because hooks "apply regardless
-# of what Claude decides to do". The prose in AGENTS.md remains the substance: it says what to
-# write and where. This script only makes forgetting it visible.
-#   Hooks reference: https://code.claude.com/docs/en/hooks
-#
-# WHAT IT DOES
-#   Stop        - if the session changed tracked files outside the memory folder and changed
-#                 nothing inside it, exit 2. That blocks the stop and hands the message back to
-#                 Claude, which can then write Exit or Checkpoint and stop normally.
-#   PreCompact  - if anything is uncommitted, print a reminder that handoff.md is what survives
-#                 compaction. Never blocks.
-#
-# WHAT IT DELIBERATELY DOES NOT DO
-#   - It does not write memory. A hook cannot know what was learned; only the agent can.
-#   - It does not run on SessionEnd. For that event the output and exit code are ignored, so a
-#     SessionEnd hook cannot warn anyone about anything. Registering one would look like a
-#     safety net and be nothing.
-#   - It does not see work that was already committed. It reads the working tree, so a session
-#     that commits code without memory in the same commit passes unnoticed. Catching that needs
-#     a SessionStart companion that records HEAD - more moving parts than it is worth here.
-#   - It does not block twice: the stop_hook_active guard lets the next stop through, so a
-#     disagreement with the agent can never become a loop.
-#
-# INSTALL
-# Copy to .claude/hooks/memory-exit-reminder.sh, chmod +x, and register it in
-# .claude/settings.json. Merge these keys into an existing "hooks" block, do not replace it:
-#
-#   {
-#     "hooks": {
-#       "Stop": [
-#         { "hooks": [ { "type": "command",
-#                        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/memory-exit-reminder.sh" } ] }
-#       ],
-#       "PreCompact": [
-#         { "hooks": [ { "type": "command",
-#                        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/memory-exit-reminder.sh" } ] }
-#       ]
-#     }
-#   }
-#
-# Set MEMORY_DIR below to memory if this project keeps its memory there instead of docs.
-# POSIX sh and git only. No jq: it is not installed everywhere, and a hook that dies on a missing
-# dependency fails silently, which is the one thing an enforcement point must not do.
-
-MEMORY_DIR="docs"
-
-INPUT=$(cat 2>/dev/null)
-
-# Claude Code overrides a Stop hook that blocks repeatedly; it sets stop_hook_active once a hook
-# has already continued the conversation. Honour it or risk looping until the cap.
-case "$INPUT" in
-  *'"stop_hook_active":true'*|*'"stop_hook_active": true'*) exit 0 ;;
-esac
-
-EVENT=$(printf '%s' "$INPUT" | sed -n 's/.*"hook_event_name"[[:space:]]*:[[:space:]]*"\([A-Za-z]*\)".*/\1/p')
-
-# Outside a work tree there is nothing to compare; stay silent rather than guess.
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
-
-CHANGED=$(git status --porcelain --untracked-files=all 2>/dev/null | cut -c4-)
-[ -z "$CHANGED" ] && exit 0
-
-IN_MEM=$(printf '%s\n' "$CHANGED" | grep -c "^$MEMORY_DIR/")
-OUT_MEM=$(printf '%s\n' "$CHANGED" | grep -vc "^$MEMORY_DIR/")
-[ -z "$IN_MEM" ] && IN_MEM=0
-[ -z "$OUT_MEM" ] && OUT_MEM=0
-
-if [ "$EVENT" = "PreCompact" ]; then
-  echo "Checkpoint: this context is about to be compacted. $MEMORY_DIR/handoff.md is what survives it." >&2
-  echo "If a task is in flight, rewrite handoff.md now: task verbatim, done, not done, next single action, numbers with sources." >&2
-  exit 0
-fi
-
-if [ "$OUT_MEM" -gt 0 ] && [ "$IN_MEM" -eq 0 ]; then
-  echo "Exit was not run. This session changed $OUT_MEM tracked file(s) and nothing in $MEMORY_DIR/." >&2
-  echo "Before stopping, do one of these:" >&2
-  echo "  - task finished  -> run Exit from AGENTS.md: traps.md, tooling.md, decisions.md, tasks.md, then report." >&2
-  echo "  - task in flight -> rewrite $MEMORY_DIR/handoff.md (Checkpoint)." >&2
-  echo "  - nothing was learned and nothing is left open -> say so in one line and stop; this will not ask again." >&2
-  exit 2
-fi
-
-exit 0
-```
-
 ### Levels 1-2 - created when there is a first entry to put in them
 
-### A.13 · `docs/decisions.md`
+### A.11 · `docs/decisions.md`
 
 ```markdown
 # <Project> — decisions
@@ -1062,7 +931,7 @@ Three things people forget are decisions: a deliberate compromise by the owner; 
 **Status:** active | superseded by decision of DD.MM.YYYY | rejected
 ```
 
-### A.14 · `docs/changelog.md`
+### A.12 · `docs/changelog.md`
 
 ```markdown
 # <Project> — changes outside git
@@ -1074,7 +943,7 @@ Only what git does not show: database edits, external service settings, CDN rule
 | DD.MM.YYYY | | | |
 ```
 
-### A.15 · `docs/open-questions.md`
+### A.13 · `docs/open-questions.md`
 
 ```markdown
 # <Project> — open questions
@@ -1088,7 +957,7 @@ Blocked until a human decides. Answered → the item moves to `docs/decisions.md
 **Blocked meanwhile:** what must not be done until answered.
 ```
 
-### A.16 · `docs/architecture.md`
+### A.14 · `docs/architecture.md`
 
 ```markdown
 # <Project> — architecture memory
@@ -1124,7 +993,7 @@ Not a description of the code (the code shows that). Only what the code does not
 |---|---|---|---|
 ```
 
-### A.17 · `docs/measurement.md`
+### A.15 · `docs/measurement.md`
 
 ```markdown
 # <Project> — measurement
@@ -1154,7 +1023,7 @@ Date · conditions · numbers · link to evidence.
 |---|---|---|---|---|
 ```
 
-### A.18 · `docs/personal.md`
+### A.16 · `docs/personal.md`
 
 ```markdown
 # <Project> — people

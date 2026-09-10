@@ -12,7 +12,8 @@ system into project <name>. My answers are at the top." Open that chat somewhere
 folder connected, or with a host MCP, or with an authenticated CLI in a shell. A plain folder with no
 version control is a supported target: see the three tiers at the top of step 0.
 
-The file is self-contained: all the templates are in Appendix A.
+Everything the install has to fill in is in Appendix A. The five files it only copies and runs — the
+verifier, two workflows and two hooks — are named in Appendix C with the URL to fetch each from.
 
 ## The answers — before the install starts
 
@@ -81,13 +82,16 @@ Do not: describe architecture visible from the code; rewrite the rules "more sof
 **Three tiers. Establish which one this install is on and name it in the closing summary.**
 
 - **Tier 1 — a folder.** Markdown files in a directory: a desktop, the owner's own server, a
-  Dropbox folder, an Obsidian vault, documents that are not code at all. The format and all five
+  Dropbox folder, an Obsidian vault, documents that are not code at all. The format and all six
   procedures work; where one leans on git it carries the no-git clause in the same line (Entry
   reads `docs/changelog.md` and file dates instead of recent commits; Exit writes its records
-  before reporting). Install no workflows and no hook, and say so.
+  before reporting). Install no workflows, no hooks and no commit guard, and say so — and say the
+  one thing tier 1 loses outright: Rotation's usefulness ratchet reads the commit log, and there
+  is no commit log here, so age alone decides what is archived.
 - **Tier 2 — git, any remote or none.** Commits, branches, "records in the same commit", the
-  concurrency check in Entry, the `memory-v8` rule in step 6: plain git, so GitLab, Gitea, Forgejo,
-  a bare repo over SSH or no remote at all all work.
+  concurrency check in Entry, Rotation's usefulness ratchet, the commit guard of step 3 and the
+  `memory-v8` rule in step 6: plain git, so GitLab, Gitea, Forgejo, a bare repo over SSH or no
+  remote at all all work.
 - **Tier 3 — a host with automation.** Exactly three capabilities: **run a check on push**, **hold
   a secret**, **fetch a file from a related carrier**. GitHub Actions, repo secrets and the GitHub
   MCP are written out below because they are the ones that have been run; elsewhere the same three
@@ -165,16 +169,38 @@ Merge rules, if the project already has instruction files:
 - `.cursor/rules/*.mdc` with `globs:` you leave as they are — that is conditional loading, it does not compete for the budget;
 - the new `CLAUDE.md` is one line, `@AGENTS.md` — Anthropic's own documented recommendation, because Claude Code reads `CLAUDE.md` and not `AGENTS.md`, so the import stops two copies drifting apart. Cursor, Codex and Copilot read `AGENTS.md` directly.
 
-Two more files go in at level 0, both about keeping the memory safe and current:
+Then the machinery: five files that are copied, not filled in. Appendix C has the path of each in
+this kit; fetch them from there rather than retyping them. Prose does not hold, and each of these
+turns one written rule into something that runs.
 
-- `.github/workflows/memory-secret-scan.yml` (A.11) where there is CI to run it — the capability is "run a check on push", so elsewhere it is that host's CI, and with none it is a `pre-commit` hook or a manual pass — plus `*.local.md` in `.gitignore`. `tooling.md` says how to get into every system, which makes it the one memory file worth attacking; the scan stops a credential value being committed there, and `docs/tooling.local.md` takes anything that must not be committed at all. Read the top of A.5 first.
+- `.githooks/commit-msg` + `git config core.hooksPath .githooks` + `*.local.md` in `.gitignore`.
+  The guard refuses a commit whose staged files change the project and change nothing in the memory
+  folder — the case the `Stop` hook structurally cannot see, and the one Exit's own rule ("records
+  in the same commit as the change") makes ordinary. It is the only enforcement in the kit that
+  works at tier 2 with no host at all. **Two things to say out loud to the user, not to skip.**
+  First: hooks are not versioned, so the file is committed under `.githooks/` and the setting that
+  runs it is per clone — a fresh clone, a second machine and every colleague start without it.
+  Run the config command yourself now, and put it in the Entry patterns table of `tooling.md`;
+  `verify-install.py` reports an unset `core.hooksPath` as BLOCKING, which is what keeps the
+  omission from being silent. Second: the one escape is `Memory-Skip: <why>` in the commit message
+  — the refusal message names it, so the user learns it at the moment they need it, and
+  `git log --grep='^Memory-Skip:'` says how often the project reaches for it. Do not install it in
+  a repo that has hooks in `.git/hooks` without moving those into `.githooks/` first:
+  `core.hooksPath` replaces that directory wholesale. No git at all — skip it and say so.
 - `scripts/verify-install.py` and, where there is CI to run it,
-  `templates/.github/workflows/memory-verify-install.yml` — both copied from this kit, never one
-  without the other: the script is the check and the workflow is only its runner. Neither is in
-  Appendix A for that reason. It re-runs step 6 point 2 on every push, so the memory cannot rot
-  quietly after the install; advisory findings are printed and do not fail the build. No CI, or
-  tier 1 — install neither, and run the script by hand or from a `pre-commit` hook.
-- `.claude/hooks/memory-exit-reminder.sh` (A.12), registered in `.claude/settings.json` as its header shows. Exit and Checkpoint are instructions in a file the agent may or may not follow; the hook is where forgetting them stops being silent. The prose stays the substance — the hook cannot write memory, only notice that none was written. **Claude Code only, and git only**: `Stop`/`PreCompact` are Claude Code hook events and the script reads `git status`. For Cursor, Codex or Copilot, and for a tier-1 folder, there is no equivalent — the instruction in `AGENTS.md` is all there is. Install it where it works and say plainly where it does not.
+  `.github/workflows/memory-verify-install.yml` — never one without the other: the script is the
+  check and the workflow is only its runner. It re-runs step 6 point 2 on every push, so the memory
+  cannot rot quietly after the install; advisory findings are printed and do not fail the build.
+  No CI, or tier 1 — install the script alone and run it by hand.
+- `.github/workflows/memory-secret-scan.yml` where there is CI to run it. `tooling.md` says how to
+  get into every system, which makes it the one memory file worth attacking; the scan stops a
+  credential value being committed there, and `docs/tooling.local.md` takes anything that must not
+  be committed at all. Read the top of A.5 first. Set `MEM` to `memory` if step 0 chose that folder.
+- `.claude/hooks/memory-exit-reminder.sh`, registered in `.claude/settings.json` as its header
+  shows. **Claude Code only, and git only**: `Stop`/`PreCompact` are Claude Code hook events and
+  the script reads `git status`. For Cursor, Codex or Copilot there is no equivalent — the
+  instruction in `AGENTS.md` and the commit guard above are all there is. Set `MEMORY_DIR` the same
+  way. Install it where it works and say plainly where it does not.
 
 File-level technical warnings (edit both copies, change the owner after copying) do not go into `AGENTS.md`: they go into `.claude/rules/<topic>.md` with `paths:` (template A.7) **and** a header comment in the file itself, because a conditional rule does not survive compaction and a file header does.
 
@@ -201,14 +227,9 @@ The link is made by two insertions, both at installation time:
 2. In every spoke — the line `Project hub: <hub locator>` under the carrier line, point 6 in Entry, and a line in Exit: "learned about the business rather than about this code → write it to the hub".
 
 **How a carrier points at another carrier.** A locator is whatever addresses it, and its kind is
-the whole of the mechanism — there is nothing else to build. How the agent reads the other
-`AGENTS.md` + `tasks.md`, by kind:
-
-- a path on the same machine (`../other-project`, `/srv/projects/x`, `~/Documents/Client A`) — read the files; no network, no credentials;
-- a git remote (`https://gitlab.com/org/repo.git`, `https://gitea.example.tld/org/repo`, or the SSH form) — `git clone --depth 1 --filter=blob:none` into a temp directory, read, delete it;
-- a readable file tree over HTTP (a raw-file base URL) — one fetch per file;
-- a host with an API (`github.com/<org>/<repo>`) — its MCP or CLI (`gh api`, `glab api`), no clone.
-
+the whole of the mechanism — there is nothing else to build. The four kinds, and how the agent
+reads the other `AGENTS.md` + `tasks.md` from each, are written out in template A.1 under Related
+carriers: copy that list into the carrier rather than paraphrasing it here, so one wording governs.
 Write the locator in the form the agent will actually use, record in `docs/tooling.md` what it needs
 to use it, and report a carrier you cannot reach rather than guessing at it.
 
@@ -291,18 +312,17 @@ A contradiction between two chats is not settled silently: both versions into `o
      another author *and* under 24 hours old. Check both halves (`git log -1 --format='%an · %ar'`,
      or the MCP's commit list): a history that merely contains other authors does not qualify, and
      treating it as concurrent activity sends every install to a branch nobody asked for.
-2. Verify with a machine, not by eye. Fetch `scripts/verify-install.py` from this kit and run it
-   against the carrier root: `python3 verify-install.py <carrier path>`. Standard library, no
-   network, no host, so it runs at tier 1 too. It reads the install you just made and checks what
-   this step used to ask you to check by hand: the line budget, every path named in the Map and in
-   Entry and Exit, unanswered `<?>`, a `traps.md` left as an empty skeleton, a Related carriers
-   table holding only the placeholder, a workflow whose secrets are recorded nowhere, every file
-   against its rotation budget, and a credential value anywhere in the memory folder. Fix
-   everything it prints under BLOCKING, run it again until it exits 0, and give the user its
-   closing line in step 7. Cannot fetch it? Say so in the summary and check those by hand — but do
-   **not** grep for the words `token`, `secret` or `password`: `tooling.md`'s own threat-model prose
-   contains them about twenty times on a correct install, and a check that cries wolf on a good
-   install gets ignored on a bad one.
+2. Verify with a machine, not by eye. Run `python3 scripts/verify-install.py <carrier path>`
+   (Appendix C). Standard library, no network, no host, so it runs at tier 1 too. It reads the
+   install you just made and checks by machine everything this step used to ask you to check by
+   eye — the line budget, every path the index names, unanswered `<?>`, an empty trap skeleton, a
+   placeholder-only carriers table, a workflow whose secrets are recorded nowhere, every file
+   against its budget, an unset `core.hooksPath`, and a credential value anywhere in the memory
+   folder. Fix everything it prints under BLOCKING, run it again until it exits 0, and give the
+   user its closing line in step 7. Cannot fetch it? Say so in the summary and check by hand — but
+   do **not** grep for the words `token`, `secret` or `password`: `tooling.md`'s own threat-model
+   prose contains them about twenty times on a correct install, and a check that cries wolf on a
+   good install gets ignored on a bad one.
 3. Run Entry from `AGENTS.md` once, **out loud** — the first sentence of a session with memory. If
    it will not come out because `tasks.md` is empty, decide which empty it is: genuinely nothing
    open, say so and move on; question 7 never answered, write one line in `tasks.md` saying the
@@ -315,8 +335,10 @@ A contradiction between two chats is not settled silently: both versions into `o
    on and what that tier does not give them, and the verifier's closing line from step 6.
 2. The starting budget: how many lines there are in `AGENTS.md`.
 3. The BOOTSTRAP line for chats without a folder — ready to copy (template A.10, filled in).
-4. What is left for the human: any unset secrets; the HARVEST of the old chats (`HARVEST.md`, the
-   highest-value thing left undone); every `<?>` still open, by question number.
+4. What is left for the human: `git config core.hooksPath .githooks` in every other clone of this
+   repo, on every machine, because that setting does not travel and the commit guard is inert
+   without it; any unset secrets; the HARVEST of the old chats (`HARVEST.md`, the highest-value
+   thing left undone); every `<?>` still open, by question number.
 5. The first Entry sentence, the one you just said.
 
 ---
@@ -330,6 +352,9 @@ A contradiction between two chats is not settled silently: both versions into `o
 | a task just given, or done but not yet confirmed | `docs/tasks.md` |
 | work broke off mid-task; every step of a long task | `docs/handoff.md` (rewrite it) |
 | a surprise that cost more than 15 minutes | `docs/traps.md`, in the same commit |
+| a system behaved differently from how you were sure it would | `docs/traps.md`, **now**, mid-task — cause first (AGENTS.md → Surprise) |
+| a trap you read changed what you then did | `Memory-Used: traps.md#<slug>` in that commit's message — never in the file (AGENTS.md → Rotation) |
+| this commit genuinely needs no memory | `Memory-Skip: <why>` in that commit's message |
 | how to get into a tool, where a secret lives, how to send a report | `docs/tooling.md` |
 | why this way and not another; a rejected idea with the number that rejected it | `docs/decisions.md` |
 | a change made outside git (database, panel, CDN, manual run) | `docs/changelog.md` |
@@ -340,6 +365,30 @@ A contradiction between two chats is not settled silently: both versions into `o
 | what is visible from the code | **nowhere** |
 
 Budget: `AGENTS.md` ≤ 150 lines (argued under principle 2). `tasks.md` at around 80 lines is a signal, not a limit; the rest of `docs/` is unlimited, because it is read on demand.
+
+---
+
+## Appendix C. The five files that are copied, not filled in
+
+Appendix A holds what you must **edit**: every template there has angle brackets in it that only
+this project's answers can fill. These five you **copy and run**; at most you set one variable at
+the top of each. Pasting them through this installer added 9.6 KB to a file whose size is its main
+complaint, and gave them a way to drift — a copy here can be stale while the file it copies is not.
+So they are fetched from the kit instead: the repository you took this file from, at the paths
+below.
+
+| Path in the kit | Install to | Needs | Set before committing |
+|---|---|---|---|
+| `templates/.githooks/commit-msg` | `.githooks/commit-msg`, `chmod +x` | git (tier 2) | nothing; then `git config core.hooksPath .githooks`, once per clone |
+| `scripts/verify-install.py` | `scripts/verify-install.py` | nothing (tier 1) | nothing |
+| `templates/.github/workflows/memory-verify-install.yml` | `.github/workflows/` | CI (tier 3) | nothing |
+| `templates/.github/workflows/memory-secret-scan.yml` | `.github/workflows/` | CI (tier 3) | `MEM:` — `docs` or `memory` |
+| `templates/.claude/hooks/memory-exit-reminder.sh` | `.claude/hooks/`, `chmod +x` | Claude Code + git | `MEMORY_DIR` — `docs` or `memory`; register it in `.claude/settings.json` |
+
+Cannot fetch them — no network in this session, or the kit is unreachable? Install what you can,
+say plainly in the closing summary which of the five are missing and what each would have caught,
+and put a line in `docs/tasks.md` for the owner. Do not reconstruct one from memory: a guard that
+is subtly wrong is worse than one that is absent, because the absent one is not trusted.
 
 ---
 
