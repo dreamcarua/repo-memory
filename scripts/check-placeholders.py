@@ -5,13 +5,21 @@
 The templates in this repo are placeholders. A placeholder that quietly turns back into a real
 name, a real host or a real secret is the failure mode this repo cannot recover from, because
 once the repo is public the leak is in the git history forever. This check runs on every push
-and fails on five classes:
+and fails on six classes:
 
   1. Cyrillic characters outside an allowlisted path
   2. a forbidden proper noun (people, brands, hosts) - see NOTE below
   3. an e-mail address
   4. a credential-shaped string (nine patterns)
   5. a real-looking absolute home path: /Users/<someone> or /home/<someone>
+  6. any of the above in COMMIT METADATA - author, committer or message, every commit
+     reachable from HEAD
+
+Class 6 exists because classes 1-5 walk the working tree, and commit metadata is not in the
+working tree. The first attempt at this repository carried a personal e-mail address in the
+author and committer of all twelve of its commits, and every check here passed, because none
+of them looked. History cannot be rewritten after publication, so this class is the one that
+has to be caught before the first push, not after.
 
 NOTE on class 2: the forbidden nouns are stored as truncated SHA-256 hashes, not as text. A
 denylist written out in plain text would publish, in a public repo, exactly the names it exists
@@ -31,6 +39,7 @@ import hashlib
 import io
 import os
 import re
+import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -102,6 +111,10 @@ CREDENTIALS = [
 
 SKIP_DIRS = set([".git"])
 
+# Class 6. The only identities a commit here may carry: a GitHub noreply address, or the
+# co-author line this project commits with. Anything else is somebody's real mailbox.
+IDENTITY_OK = re.compile(r"^(?:[^@\s]+@users\.noreply\.github\.com|noreply@anthropic\.com)$")
+
 
 def candidates(line):
     """Whole words, plus adjacent pairs joined by '.' and '-' (hosts, handles)."""
@@ -119,6 +132,74 @@ def walk():
         for fn in sorted(filenames):
             full = os.path.join(dirpath, fn)
             yield full, os.path.relpath(full, ROOT)
+
+
+def scan_commit_metadata(violations):
+    """Class 6. Returns the number of commits scanned, or -1 if there was nothing to scan.
+
+    Every commit reachable from HEAD, not just the tip: a leak in the first commit of a long
+    history is exactly as public as one in the last. Needs full history, so the workflow that
+    runs this uses fetch-depth: 0; a shallow checkout would scan one commit and report success.
+    """
+    if not os.path.isdir(os.path.join(ROOT, ".git")):
+        return -1
+    fmt = "%H%x1f%an%x1f%ae%x1f%cn%x1f%ce%x1f%B%x1e"
+    try:
+        raw = subprocess.check_output(["git", "-C", ROOT, "log", "--format=" + fmt],
+                                      stderr=subprocess.PIPE)
+    except Exception:
+        return -1
+
+    n = 0
+    for record in raw.decode("utf-8", "replace").split("\x1e"):
+        if not record.strip():
+            continue
+        parts = record.lstrip("\n").split("\x1f")
+        if len(parts) < 6:
+            continue
+        sha, an, ae, cn, ce, msg = parts[:6]
+        n += 1
+        where = "commit " + sha[:8]
+
+        for role, addr in (("author", ae), ("committer", ce)):
+            if not IDENTITY_OK.match(addr.strip()):
+                violations.append(("commit identity", where, 0,
+                                   "%s address %s is not a noreply address" % (role, addr.strip())))
+
+        for m in EMAIL.findall(msg):
+            if not IDENTITY_OK.match(m):
+                violations.append(("commit message e-mail", where, 0, m))
+
+        # Names and message text, with the strings that are legitimately allowed to contain the
+        # account login removed first: the canonical repo URL and any noreply address.
+        blob = " ".join([an, cn, msg]).replace(SELF_URL_MARKS[0], " ")
+        for m in EMAIL.findall(blob):
+            if IDENTITY_OK.match(m):
+                blob = blob.replace(m, " ")
+
+        hits = CYRILLIC.findall(blob)
+        if hits:
+            violations.append(("commit metadata cyrillic", where, 0,
+                               "%d Cyrillic character(s)" % len(hits)))
+
+        for cand in candidates(blob):
+            ch = hashlib.sha256(cand.encode("utf-8")).hexdigest()[:16]
+            if ch not in FORBIDDEN:
+                continue
+            # The account login is unavoidable in metadata: it is the author name and half of
+            # the noreply address. Exactly that one term is forgiven here; every other
+            # denylisted name in an author, committer or message still fails the build.
+            if ch in SELF_URL_TERMS:
+                continue
+            violations.append(("commit metadata term", where, 0, "a denylisted proper noun"))
+            break
+
+        for name, rx in CREDENTIALS:
+            m = rx.search(msg)
+            if m:
+                violations.append(("commit message credential (%s)" % name, where, 0,
+                                   m.group(0)[:20] + "..."))
+    return n
 
 
 def main():
@@ -175,16 +256,29 @@ def main():
                 for m in HOMEPATH.findall(line):
                     violations.append(("absolute home path", rel, n, m))
 
+    commits = scan_commit_metadata(violations)
+
+    where_commits = ("%d commits" % commits) if commits >= 0 else "commit metadata NOT scanned"
+
     if violations:
-        print("check-placeholders: FAILED - %d violation(s), %d files scanned\n"
-              % (len(violations), scanned))
+        print("check-placeholders: FAILED - %d violation(s), %d files and %s scanned\n"
+              % (len(violations), scanned, where_commits))
         for cls, rel, n, detail in violations:
-            print("  %-26s %s:%d  %s" % (cls, rel, n, detail))
+            loc = rel if n == 0 else "%s:%d" % (rel, n)
+            print("  %-30s %-26s %s" % (cls, loc, detail))
         print("\nThese must not reach a public repo. Replace them with placeholders.")
+        print("A commit-metadata finding cannot be fixed by editing a file: it needs the history")
+        print("rewritten, or a fresh repository. Catch it before the first push.")
         return 1
 
-    print("check-placeholders: OK - %d files scanned; no leaked names, addresses, "
-          "secrets or paths." % scanned)
+    if commits < 0:
+        print("check-placeholders: OK - %d files scanned; no leaked names, addresses, "
+              "secrets or paths." % scanned)
+        print("  note: no git history here, so commit metadata was not scanned (class 6).")
+        return 0
+
+    print("check-placeholders: OK - %d files and %d commits scanned; no leaked names, "
+          "addresses, secrets or paths." % (scanned, commits))
     return 0
 
 

@@ -19,5 +19,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Class 6 scans every commit reachable from HEAD. The default shallow checkout
+          # would hand it one commit and it would report success on a dirty history.
+          fetch-depth: 0
       - name: No leaked names, addresses, secrets or paths
         run: python3 scripts/check-placeholders.py
