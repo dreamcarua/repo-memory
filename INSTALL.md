@@ -412,6 +412,7 @@ Owner: <name>. Tasks are closed by whoever set them; we hand over.
 - Talk to the user in <language> (or the language they write in). Dates <date format>, time <timezone>.
 - Do on your own: <code edits, deploys, migrations, ...>
 - Always ask first: money, irreversible actions, other people's resources, <...>
+- For bounded, independent work, delegate when useful: use the smallest adequate, economical model or tier; escalate only for demonstrated complexity, risk, or failure. Keep scopes and outputs explicit, avoid duplicate work and repeated context, and never invent savings guarantees or performance claims.
 - Never: <...>
 - Secrets never go into this repo. `docs/tooling.md` says where they live, not what they are.
 
