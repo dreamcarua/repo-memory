@@ -412,7 +412,7 @@ Owner: <name>. Tasks are closed by whoever set them; we hand over.
 - Talk to the user in <language> (or the language they write in). Dates <date format>, time <timezone>.
 - Do on your own: <code edits, deploys, migrations, ...>
 - Always ask first: money, irreversible actions, other people's resources, <...>
-- For bounded, independent work, delegate when useful: use the smallest adequate, economical model or tier; escalate only for demonstrated complexity, risk, or failure. Keep scopes and outputs explicit, avoid duplicate work and repeated context, and never invent savings guarantees or performance claims.
+- Model floor (owner rule 05.10.2026, replaces the economical-model rule of 20.09.2026): quality over savings and speed. The main model is Claude Opus; for delegated, bounded or automated work use Claude Sonnet or higher and never go below Sonnet (no Haiku, no mini / flash / small tiers of any vendor). Delegate bounded, independent work when useful. Keep scopes and outputs explicit, avoid duplicate work and repeated context, and never invent performance claims.
 - Never: <...>
 - Secrets never go into this repo. `docs/tooling.md` says where they live, not what they are.
 
